@@ -16,12 +16,14 @@ import android.media.SoundPool;
 import android.media.SoundPool.OnLoadCompleteListener;
 
 public class NativeAudioAssetComplex implements OnLoadCompleteListener {
+    public static final String TAG = "NativeAudioAssetComplex";
+    
     private static final int INVALID = 0;
     private static final int PREPARED = 1;
-    private static final int PENDING_PLAY = 2;
-    private static final int PLAYING = 3;
-    private static final int PENDING_LOOP = 4;
-    private static final int LOOPING = 5;
+    private static final int PLAYING = 2;
+    private static final int PLAYING_PAUSED = 3;
+    private static final int LOOPING = 4;
+    private static final int LOOPING_PAUSED = 5;
     
     private SoundPool sp;
     private float volume;
@@ -62,20 +64,22 @@ public class NativeAudioAssetComplex implements OnLoadCompleteListener {
     
     private void invokePlay( Boolean loop )
     {
-        if ( state ==  PLAYING || state == LOOPING)
+        if ( state == PLAYING || state == LOOPING)
         {
             sp.stop(this.streamID);
+            state = PREPARED;
         }
-        
-        this.streamID = sp.play(this.soundID,this.volume,this.volume,0,loop?-1:0,1);
-        state = loop?LOOPING:PLAYING;
+        if (state == PREPARED) {
+            this.streamID = sp.play(this.soundID, this.volume, this.volume, 0, loop ? -1 : 0, 1);
+            state = loop ? LOOPING : PLAYING;
+        }
     }
     
     public boolean pause()
     {
-        if ( state ==  PLAYING || state == LOOPING) {
+        if ( state == PLAYING || state == LOOPING) {
             sp.pause(this.streamID);
-            state = INVALID;
+            state = (state == PLAYING) ? PLAYING_PAUSED : LOOPING_PAUSED;
             return true;
         }
         return false;
@@ -83,21 +87,24 @@ public class NativeAudioAssetComplex implements OnLoadCompleteListener {
     
     public void resume()
     {
-        sp.resume(this.streamID);
+        if ( state == PLAYING_PAUSED || state == LOOPING_PAUSED) {
+            sp.resume(this.streamID);
+            state = (state == PLAYING_PAUSED) ? PLAYING : LOOPING;
+        }
     }
     
     public void stop()
     {
-        if ( state ==  PLAYING || state == LOOPING) {
+        if ( state == PLAYING || state == LOOPING) {
             sp.stop(this.streamID);
-            state = INVALID;
+            state = PREPARED;
         }
     }
     
     public void setVolume(float volume)
     {
         this.volume = volume;
-        if ( state ==  PLAYING || state == LOOPING) {
+        if ( state == PLAYING || state == LOOPING) {
             sp.setVolume(this.streamID,volume,volume);
         }
     }
@@ -111,10 +118,15 @@ public class NativeAudioAssetComplex implements OnLoadCompleteListener {
     {
         this.stop();
         sp.release();
+        this.streamID = 0;
+        this.state = INVALID;
     }
     
     public void onLoadComplete(SoundPool soundPool, int sampleId, int status)
     {
+        if (status == 0) {
+            this.state = PREPARED;
+        }
     }
     
 }
