@@ -74,17 +74,17 @@ public class NativeAudioAssetComplex implements OnPreparedListener, OnCompletion
 
 	public boolean pause()
 	{
-		try
+        try
 		{
-    				if ( mp.isPlaying() )
-				{
-					mp.pause();
-					return true;
-				}
-        	}
+            if ( mp.isPlaying() )
+            {
+                mp.pause();
+                return true;
+            }
+        }
 		catch (IllegalStateException e)
 		{
-		// I don't know why this gets thrown; catch here to save app
+            // I don't know why this gets thrown; catch here to save app
 		}
 		return false;
 	}
@@ -103,23 +103,23 @@ public class NativeAudioAssetComplex implements OnPreparedListener, OnCompletion
 				state = INVALID;
 				mp.pause();
 				mp.seekTo(0);
-	           	}
+            }
 		}
-	        catch (IllegalStateException e)
-	        {
+        catch (IllegalStateException e)
+        {
             // I don't know why this gets thrown; catch here to save app
-	        }
+        }
 	}
 
 	public void setVolume(float volume) 
 	{
-	        try
-	        {
-			mp.setVolume(volume,volume);
-            	}
-            	catch (IllegalStateException e) 
+        try
+        {
+            mp.setVolume(volume,volume);
+        }
+        catch (IllegalStateException e)
 		{
-                // I don't know why this gets thrown; catch here to save app
+            // I don't know why this gets thrown; catch here to save app
 		}
 	}
 	
