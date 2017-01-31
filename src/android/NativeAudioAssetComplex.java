@@ -11,15 +11,11 @@ import java.io.IOException;
 import java.util.concurrent.Callable;
 
 import android.content.res.AssetFileDescriptor;
-import android.media.AudioManager;
-import android.media.MediaPlayer;
-import android.media.MediaPlayer.OnCompletionListener;
-import android.media.MediaPlayer.OnPreparedListener;
-import android.util.Log;
+import android.media.AudioAttributes;
+import android.media.SoundPool;
+import android.media.SoundPool.OnLoadCompleteListener;
 
-public class NativeAudioAssetComplex implements OnPreparedListener, OnCompletionListener {
-    public static final String TAG = "NativeAudioAssetComplex";
-    
+public class NativeAudioAssetComplex implements OnLoadCompleteListener {
     private static final int INVALID = 0;
     private static final int PREPARED = 1;
     private static final int PENDING_PLAY = 2;
@@ -27,22 +23,35 @@ public class NativeAudioAssetComplex implements OnPreparedListener, OnCompletion
     private static final int PENDING_LOOP = 4;
     private static final int LOOPING = 5;
     
-    private MediaPlayer mp;
+    private SoundPool sp;
+    private float volume;
+    private int streamID = 0;
+    private int soundID = 0;
+    
     private int state;
     Callable<Void> completeCallback;
     
     public NativeAudioAssetComplex(AssetFileDescriptor afd, float volume)  throws IOException
     {
         state = INVALID;
-        mp = new MediaPlayer();
-        mp.setOnCompletionListener(this);
-        mp.setOnPreparedListener(this);
-        mp.setDataSource( afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
-        mp.setAudioStreamType(AudioManager.STREAM_VOICE_CALL);
-        mp.setVolume(volume, volume);
-        mp.prepare();
         
+        if (android.os.Build.VERSION.SDK_INT >= 21){
+            sp = new SoundPool.Builder()
+            .setMaxStreams(1)
+            .setAudioAttributes(
+                                new AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                .build()
+                                )
+            .build();
+        } else {
+            sp = new SoundPool(1, AudioAttributes.USAGE_VOICE_COMMUNICATION, 0);
+        }
         
+        this.soundID = sp.load(afd,1);
+        sp.setOnLoadCompleteListener(this);
+        this.volume = volume;
     }
     
     public void play(Callable<Void> completeCb) throws IOException
@@ -53,75 +62,43 @@ public class NativeAudioAssetComplex implements OnPreparedListener, OnCompletion
     
     private void invokePlay( Boolean loop )
     {
-        Boolean playing = mp.isPlaying();
-        if ( playing )
+        if ( state ==  PLAYING || state == LOOPING)
         {
-            mp.pause();
-            mp.setLooping(loop);
-            mp.seekTo(0);
-            mp.start();
+            sp.stop(this.streamID);
         }
-        if ( !playing && state == PREPARED )
-        {
-            state = (loop ? PENDING_LOOP : PENDING_PLAY);
-            onPrepared( mp );
-        }
-        else if ( !playing )
-        {
-            state = (loop ? PENDING_LOOP : PENDING_PLAY);
-            mp.setLooping(loop);
-            mp.start();
-        }
+        
+        this.streamID = sp.play(this.soundID,this.volume,this.volume,0,loop?-1:0,1);
+        state = loop?LOOPING:PLAYING;
     }
     
     public boolean pause()
     {
-        try
-        {
-            if ( mp.isPlaying() )
-            {
-                mp.pause();
-                return true;
-            }
-        }
-        catch (IllegalStateException e)
-        {
-            Log.v(TAG, "pause exception: " + e.getMessage());
+        if ( state ==  PLAYING || state == LOOPING) {
+            sp.pause(this.streamID);
+            state = INVALID;
+            return true;
         }
         return false;
     }
     
     public void resume()
     {
-        mp.start();
+        sp.resume(this.streamID);
     }
     
     public void stop()
     {
-        try
-        {
-            if ( mp.isPlaying() )
-            {
-                state = INVALID;
-                mp.pause();
-                mp.seekTo(0);
-            }
-        }
-        catch (IllegalStateException e)
-        {
-            Log.v(TAG, "pause exception: " + e.getMessage());
+        if ( state ==  PLAYING || state == LOOPING) {
+            sp.stop(this.streamID);
+            state = INVALID;
         }
     }
     
     public void setVolume(float volume)
     {
-        try
-        {
-            mp.setVolume(volume,volume);
-        }
-        catch (IllegalStateException e)
-        {
-            Log.v(TAG, "pause exception: " + e.getMessage());
+        this.volume = volume;
+        if ( state ==  PLAYING || state == LOOPING) {
+            sp.setVolume(this.streamID,volume,volume);
         }
     }
     
@@ -133,46 +110,11 @@ public class NativeAudioAssetComplex implements OnPreparedListener, OnCompletion
     public void unload() throws IOException
     {
         this.stop();
-        mp.release();
+        sp.release();
     }
     
-    public void onPrepared(MediaPlayer mPlayer)
+    public void onLoadComplete(SoundPool soundPool, int sampleId, int status)
     {
-        if (state == PENDING_PLAY)
-        {
-            mp.setLooping(false);
-            mp.seekTo(0);
-            mp.start();
-            state = PLAYING;
-        }
-        else if ( state == PENDING_LOOP )
-        {
-            mp.setLooping(true);
-            mp.seekTo(0);
-            mp.start();
-            state = LOOPING;
-        }
-        else
-        {
-            state = PREPARED;
-            mp.seekTo(0);
-        }
     }
     
-    public void onCompletion(MediaPlayer mPlayer)
-    {
-        if (state != LOOPING)
-        {
-            this.state = INVALID;
-            try {
-                this.stop();
-                if (completeCallback != null)
-                    completeCallback.call();
-            }
-            catch (Exception e)
-            {
-                e.printStackTrace();
-            }
-        }
-    }
 }
