@@ -17,6 +17,7 @@ import android.media.MediaPlayer.OnCompletionListener;
 import android.media.MediaPlayer.OnPreparedListener;
 
 public class NativeAudioAssetComplex implements OnPreparedListener, OnCompletionListener {
+    public static final String TAG = "NativeAudioAssetComplex";
 
 	private static final int INVALID = 0;
 	private static final int PREPARED = 1;
@@ -84,7 +85,7 @@ public class NativeAudioAssetComplex implements OnPreparedListener, OnCompletion
         }
 		catch (IllegalStateException e)
 		{
-            // I don't know why this gets thrown; catch here to save app
+            Log.v(TAG, "pause exception: " + e.getMessage());
 		}
 		return false;
 	}
@@ -107,7 +108,7 @@ public class NativeAudioAssetComplex implements OnPreparedListener, OnCompletion
 		}
         catch (IllegalStateException e)
         {
-            // I don't know why this gets thrown; catch here to save app
+            Log.v(TAG, "pause exception: " + e.getMessage());
         }
 	}
 
@@ -119,7 +120,7 @@ public class NativeAudioAssetComplex implements OnPreparedListener, OnCompletion
         }
         catch (IllegalStateException e)
 		{
-            // I don't know why this gets thrown; catch here to save app
+            Log.v(TAG, "pause exception: " + e.getMessage());
 		}
 	}
 	
