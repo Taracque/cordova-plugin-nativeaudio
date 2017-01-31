@@ -14,6 +14,7 @@ import android.content.res.AssetFileDescriptor;
 import android.media.AudioAttributes;
 import android.media.SoundPool;
 import android.media.SoundPool.OnLoadCompleteListener;
+import android.util.Log;
 
 public class NativeAudioAssetComplex implements OnLoadCompleteListener {
     public static final String TAG = "NativeAudioAssetComplex";
@@ -29,6 +30,8 @@ public class NativeAudioAssetComplex implements OnLoadCompleteListener {
     private float volume;
     private int streamID = 0;
     private int soundID = 0;
+    private Boolean looping = false;
+    private Boolean playOnLoad = false;
     
     private int state;
     Callable<Void> completeCallback;
@@ -68,6 +71,10 @@ public class NativeAudioAssetComplex implements OnLoadCompleteListener {
         {
             sp.stop(this.streamID);
             state = PREPARED;
+        }
+        if (state == INVALID) {
+            this.looping = loop;
+            this.playOnLoad = true;
         }
         if (state == PREPARED) {
             this.streamID = sp.play(this.soundID, this.volume, this.volume, 0, loop ? -1 : 0, 1);
@@ -126,6 +133,12 @@ public class NativeAudioAssetComplex implements OnLoadCompleteListener {
     {
         if (status == 0) {
             this.state = PREPARED;
+            if (this.playOnLoad) {
+                this.playOnLoad = false;
+                this.invokePlay(this.looping);
+            }
+        } else {
+            Log.v("NativeAudioAssetComplex","status: " + status);
         }
     }
     
